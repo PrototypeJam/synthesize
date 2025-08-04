@@ -137,3 +137,52 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# VS Code settings directory
+.vscode/
+
+# Mac system files
+.DS_Store
+
+# JetBrains IDEs (WebStorm, IntelliJ, etc.)
+.idea/
+*.iml
+
+# Editor swap files
+*.swp
+*.swo
+
+# Prettier cache
+.prettiercache
+
+# Jest Snapshots
+__snapshots__/
+
+# Cypress artifacts
+cypress/screenshots/
+cypress/videos/
+
+# SQLite database files
+*.sqlite
+*.sqlite3
+
+# VS Code workspace storage
+.vscode-test/
+
+# Parcel cache (if used)
+.cache/
+
+# Local temp files
+*.local
+
+# Output directory (if used in your workflow)
+build/
+
+# Miscellaneous (remove if not used in your project)
+tmp/
+temp/
+
+.DS_Store
+
+
+# End of file
