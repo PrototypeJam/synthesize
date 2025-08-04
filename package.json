@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "homepage": "https://prototypejam.github.io/prototypejam-synthesize/",
+  "homepage": "https://prototypejam.github.io/synthesize/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
