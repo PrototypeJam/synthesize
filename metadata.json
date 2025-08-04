@@ -1,0 +1,5 @@
+{
+  "name": "URL Content Synthesizer",
+  "description": "An application that takes two URLs, fetches their content, summarizes each individually, and then synthesizes the full content of both URLs into a structured narrative. It uses the Gemini API for summarization and synthesis tasks.",
+  "requestFramePermissions": []
+}
