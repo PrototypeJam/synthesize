@@ -53,14 +53,14 @@ export async function getSummary(content: string): Promise<string> {
     const aiInstance = getAiInstance();
     try {
         const result = await aiInstance.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-pro",
             contents: `${SUMMARY_PROMPT}\n\nCONTENT:\n${content}`
         });
         return result.text;
     } catch (error: any) {
         console.error("Error in getSummary:", error);
         if (error.message?.includes('404') || error.message?.includes('not found')) {
-            throw new Error("Model not found. Try 'gemini-1.5-flash' or check your API key.");
+            throw new Error("Model not found. Try 'gemini-2.5-pro' or check your API key.");
         }
         throw new Error("Failed to generate summary. Please check your API key and try again.");
     }
@@ -71,14 +71,14 @@ export async function getSynthesis(content1: string, content2: string): Promise<
     const combinedContent = `Content 1:\n${content1}\n\n---\n\nContent 2:\n${content2}`;
     try {
         const result = await aiInstance.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-pro",
             contents: `${SYNTHESIS_PROMPT}\n\n${combinedContent}`
         });
         return result.text;
     } catch (error: any) {
         console.error("Error in getSynthesis:", error);
         if (error.message?.includes('404') || error.message?.includes('not found')) {
-            throw new Error("Model not found. Try 'gemini-1.5-flash' or check your API key.");
+            throw new Error("Model not found. Try 'gemini-2.5-pro' or check your API key.");
         }
         throw new Error("Failed to generate synthesis. Please check your API key and try again.");
     }
