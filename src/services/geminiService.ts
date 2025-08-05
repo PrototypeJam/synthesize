@@ -1,15 +1,14 @@
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { SUMMARY_PROMPT, SYNTHESIS_PROMPT } from '../constants';
 
 const API_KEY_STORAGE_ID = 'gemini-api-key';
-let ai: GoogleGenerativeAI | null = null;
+let ai: GoogleGenAI | null = null;
 
 export function initializeAi(apiKey: string) {
   if (!apiKey) {
     throw new Error("API key is required to initialize the AI service.");
   }
-  // CORRECT: Using the proper GoogleGenerativeAI constructor
-  ai = new GoogleGenerativeAI(apiKey);
+  ai = new GoogleGenAI({ apiKey });
   localStorage.setItem(API_KEY_STORAGE_ID, apiKey);
 }
 
@@ -22,7 +21,7 @@ export function clearApiKey(): void {
     ai = null;
 }
 
-function getAiInstance(): GoogleGenerativeAI {
+function getAiInstance(): GoogleGenAI {
     if (!ai) {
         throw new Error("AI Service not initialized. Please set your API key.");
     }
@@ -38,7 +37,7 @@ export async function fetchUrlContent(url: string): Promise<string> {
         }
         const html = await response.text();
         
-        // Strip HTML tags to reduce tokens and improve summary quality
+        // Strip HTML tags to reduce tokens and improve quality
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const text = doc.body.textContent || doc.body.innerText || html;
@@ -52,20 +51,16 @@ export async function fetchUrlContent(url: string): Promise<string> {
 
 export async function getSummary(content: string): Promise<string> {
     const aiInstance = getAiInstance();
-    // CORRECT: No "models/" prefix needed for the model name
-    const model = aiInstance.getGenerativeModel({ model: "gemini-2.5-flash" });
     try {
-        // CORRECT: The SDK expects a simple string for this kind of prompt
-        const result = await model.generateContent(
-            `${SUMMARY_PROMPT}\n\nCONTENT:\n${content}`
-        );
-        const response = result.response;
-        return response.text();
+        const result = await aiInstance.models.generateContent({
+            model: "gemini-1.5-flash",
+            contents: `${SUMMARY_PROMPT}\n\nCONTENT:\n${content}`
+        });
+        return result.text;
     } catch (error: any) {
         console.error("Error in getSummary:", error);
-        // Better error handling for the user
         if (error.message?.includes('404') || error.message?.includes('not found')) {
-            throw new Error("Model 'gemini-2.5-flash' not found. Try 'gemini-1.5-flash' if you don't have access to 2.5 yet.");
+            throw new Error("Model not found. Try 'gemini-1.5-flash' or check your API key.");
         }
         throw new Error("Failed to generate summary. Please check your API key and try again.");
     }
@@ -73,18 +68,17 @@ export async function getSummary(content: string): Promise<string> {
 
 export async function getSynthesis(content1: string, content2: string): Promise<string> {
     const aiInstance = getAiInstance();
-    const model = aiInstance.getGenerativeModel({ model: "gemini-2.5-flash" });
     const combinedContent = `Content 1:\n${content1}\n\n---\n\nContent 2:\n${content2}`;
     try {
-        const result = await model.generateContent(
-            `${SYNTHESIS_PROMPT}\n\n${combinedContent}`
-        );
-        const response = result.response;
-        return response.text();
+        const result = await aiInstance.models.generateContent({
+            model: "gemini-1.5-flash",
+            contents: `${SYNTHESIS_PROMPT}\n\n${combinedContent}`
+        });
+        return result.text;
     } catch (error: any) {
         console.error("Error in getSynthesis:", error);
         if (error.message?.includes('404') || error.message?.includes('not found')) {
-            throw new Error("Model 'gemini-2.5-flash' not found. Try 'gemini-1.5-flash' if you don't have access to 2.5 yet.");
+            throw new Error("Model not found. Try 'gemini-1.5-flash' or check your API key.");
         }
         throw new Error("Failed to generate synthesis. Please check your API key and try again.");
     }
