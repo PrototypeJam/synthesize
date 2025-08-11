@@ -1,6 +1,6 @@
 export const SUMMARY_PROMPT = `
 # PRIMARY INSTRUCTION:
-What is 1) the main thesis or point in this content and 2) what is each important point, question, or idea? Please use concise bullet points. Start the first bullet with "The overall main point or is".
+What is 1) the main thesis or point in this content and 2) what is each important point, question, or idea? Please use concise bullet points. Start the first bullet with "The overall main point is".
 ## EXCEPTION
 If, and only if, the content is a hacker news discussion thread, then:
 1) provide a bullet list starting with a statement of the content the discussion thread is about including a link if possible
