@@ -2,6 +2,10 @@
 
 This contains everything you need to run your app locally.
 
+# Try it Now
+
+[https://prototypejam.github.io/synthesize](https://prototypejam.github.io/synthesize)
+
 ## Run Locally
 
 **Prerequisites:**  Node.js
