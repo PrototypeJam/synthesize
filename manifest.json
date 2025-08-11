@@ -1,19 +1,12 @@
 {
-  "short_name": "Synthesizer",
-  "name": "URL Content Synthesizer",
+  "short_name": "Synthi",
+  "name": "Synthi — URL Content Synthesizer",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "/icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    }
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512" }
   ],
   "start_url": ".",
+  "scope": "/synthesize/",
   "display": "standalone",
   "theme_color": "#111827",
   "background_color": "#111827"
