@@ -26,17 +26,37 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
         let bulletContent = line.replace(/^- \[ \]\s*/, '').replace(/^- \s*/, '');
         const attributionRegex = /^(According to .*?:)/;
         const match = bulletContent.match(attributionRegex);
-        
+        const urlRegex = /(https?:\/\/[^\s)]+)(?=[\s)]|$)/g;
+
+        const renderWithLinks = (text: string) => {
+          const parts: React.ReactNode[] = [];
+          let lastIndex = 0;
+          let m: RegExpExecArray | null;
+          while ((m = urlRegex.exec(text)) !== null) {
+            const url = m[1];
+            const start = m.index;
+            if (start > lastIndex) parts.push(<span key={`t-${lastIndex}`}>{text.slice(lastIndex, start)}</span>);
+            parts.push(
+              <a key={`a-${start}`} href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline break-all">
+                {url}
+              </a>
+            );
+            lastIndex = start + url.length;
+          }
+          if (lastIndex < text.length) parts.push(<span key={`t-end`}>{text.slice(lastIndex)}</span>);
+          return parts;
+        };
+
         if (match) {
           const attribution = match[1];
           const restOfContent = bulletContent.substring(attribution.length);
           return (
              <li key={index} className="mb-2 list-disc ml-5">
-              <strong className="text-teal-400">{attribution}</strong>{restOfContent}
+              <strong className="text-teal-400">{attribution}</strong>{renderWithLinks(restOfContent)}
             </li>
           );
         }
-        return <li key={index} className="mb-2 list-disc ml-5">{bulletContent}</li>;
+        return <li key={index} className="mb-2 list-disc ml-5">{renderWithLinks(bulletContent)}</li>;
       }
       
       if (line.trim() !== '' && isFirstH1) {
@@ -46,14 +66,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
 
       if (line.startsWith('**') && line.endsWith('**')) {
         return <p key={index} className="font-bold my-2">{line.slice(2, -2)}</p>;
-      }
-      
-      if (line.includes('http://') || line.includes('https://')) {
-          return (
-              <li key={index} className="mb-2 list-disc ml-5">
-                  <a href={line} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline break-all">{line}</a>
-              </li>
-          );
       }
       
       return <p key={index} className="my-2">{line}</p>;

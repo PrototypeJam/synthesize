@@ -113,6 +113,42 @@ const App: React.FC = () => {
 
   const getHostname = (url: string) => { try { return new URL(url).hostname; } catch { return 'Pasted'; } };
 
+  // Appends verified links to the synthesis body. If a ## PROVENANCE section
+  // exists, append links at the end of that section; else create a new section.
+  const appendVerifiedProvenance = useCallback((body: string): string => {
+    const content = (body || '').trim();
+    const links: string[] = [];
+
+    // collect definite URLs from state
+    const src1 = (inputType1 === 'url' && url1) ? url1 : undefined;
+    const src2 = (mode === 'dual' && inputType2 === 'url' && url2) ? url2 : undefined;
+    const hn = (hnUrl && hnUrl !== src1 && hnUrl !== src2) ? hnUrl : undefined;
+
+    if (src1) links.push(`- Source 1: ${src1}`);
+    if (src2) links.push(`- Source 2: ${src2}`);
+    if (hn)   links.push(`- Hacker News Thread: ${hn}`);
+
+    if (links.length === 0) return content;
+
+    const lines = content.split('\n');
+    const provIndex = lines.findIndex(l => /^##\s*PROVENANCE\b/i.test(l));
+
+    // no PROVENANCE section -> add one at the end
+    if (provIndex === -1) {
+      return `${content}\n\n## PROVENANCE\n${links.join('\n')}`;
+    }
+
+    // find end of PROVENANCE (next h2 or end)
+    let nextSectionIndex = lines.length;
+    for (let i = provIndex + 1; i < lines.length; i++) {
+      if (/^##\s+/.test(lines[i])) { nextSectionIndex = i; break; }
+    }
+    const before = lines.slice(0, nextSectionIndex);
+    const after = lines.slice(nextSectionIndex);
+    if (before[before.length - 1]?.trim() !== '') before.push('');
+    before.push(...links);
+    return [...before, ...after].join('\n');
+  }, [inputType1, inputType2, url1, url2, hnUrl, mode]);
   // --- Actions (Smart HN menu) ---
   const doQuickSummaries = async () => {
     if (!hnUrl || !hn?.articleUrl) return;
@@ -216,7 +252,8 @@ const App: React.FC = () => {
       setResults({ summary1: full1, summary2: full2 });
 
       setStatus(ProcessState.SYNTHESIZING);
-      const fullSyn = await streamSynthesis(c1, c2, model, setSynthesisBuf);
+      const fullSynRaw = await streamSynthesis(c1, c2, model, setSynthesisBuf);
+      const fullSyn = appendVerifiedProvenance(fullSynRaw);
       setResults({ summary1: full1, summary2: full2, synthesis: fullSyn });
       setStatus(ProcessState.DONE);
 
@@ -268,9 +305,22 @@ const App: React.FC = () => {
         ]);
         setResults({ summary1: full1, summary2: full2 });
         setStatus(ProcessState.SYNTHESIZING);
-        const syn = await streamSynthesis(c1, c2, model, setSynthesisBuf);
-        setResults({ summary1: full1, summary2: full2, synthesis: syn });
+        const synRaw = await streamSynthesis(c1, c2, model, setSynthesisBuf);
+        const synWithProv = appendVerifiedProvenance(synRaw);
+        setResults({ summary1: full1, summary2: full2, synthesis: synWithProv });
         setStatus(ProcessState.DONE);
+
+        // Add history for mixed-mode runs (missing in current code)
+        history.add({
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          model,
+          url1: inputType1 === 'url' ? url1 : undefined,
+          url2: inputType2 === 'url' ? url2 : undefined,
+          results: { summary1: full1, summary2: full2, synthesis: synWithProv },
+          hnThreadUrl: hnUrl || undefined,
+          hnTitle: hn?.title
+        });
       } catch (err: any) {
         setError(err?.message || 'Unknown error'); setStatus(ProcessState.ERROR);
       }
