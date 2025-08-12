@@ -113,42 +113,63 @@ const App: React.FC = () => {
 
   const getHostname = (url: string) => { try { return new URL(url).hostname; } catch { return 'Pasted'; } };
 
-  // Appends verified links to the synthesis body. If a ## PROVENANCE section
-  // exists, append links at the end of that section; else create a new section.
-  const appendVerifiedProvenance = useCallback((body: string): string => {
-    const content = (body || '').trim();
-    const links: string[] = [];
-
-    // collect definite URLs from state
-    const src1 = (inputType1 === 'url' && url1) ? url1 : undefined;
-    const src2 = (mode === 'dual' && inputType2 === 'url' && url2) ? url2 : undefined;
-    const hn = (hnUrl && hnUrl !== src1 && hnUrl !== src2) ? hnUrl : undefined;
-
-    if (src1) links.push(`- Source 1: ${src1}`);
-    if (src2) links.push(`- Source 2: ${src2}`);
-    if (hn)   links.push(`- Hacker News Thread: ${hn}`);
-
-    if (links.length === 0) return content;
-
-    const lines = content.split('\n');
-    const provIndex = lines.findIndex(l => /^##\s*PROVENANCE\b/i.test(l));
-
-    // no PROVENANCE section -> add one at the end
-    if (provIndex === -1) {
-      return `${content}\n\n## PROVENANCE\n${links.join('\n')}`;
+  // Normalize URLs for dedupe (strip trailing slash).
+  const normalizeUrl = (u?: string | null) => {
+    if (!u) return undefined;
+    try {
+      const s = new URL(u).toString();
+      return s.endsWith('/') ? s.slice(0, -1) : s;
+    } catch {
+      return u.endsWith('/') ? u.slice(0, -1) : u;
     }
+  };
 
-    // find end of PROVENANCE (next h2 or end)
-    let nextSectionIndex = lines.length;
-    for (let i = provIndex + 1; i < lines.length; i++) {
-      if (/^##\s+/.test(lines[i])) { nextSectionIndex = i; break; }
-    }
-    const before = lines.slice(0, nextSectionIndex);
-    const after = lines.slice(nextSectionIndex);
-    if (before[before.length - 1]?.trim() !== '') before.push('');
-    before.push(...links);
-    return [...before, ...after].join('\n');
-  }, [inputType1, inputType2, url1, url2, hnUrl, mode]);
+  /**
+   * Pure provenance appender: do NOT read component state.
+   * Always pass the URLs for *this run* explicitly.
+   */
+  const appendVerifiedProvenance = useCallback(
+    (body: string, links: { src1?: string; src2?: string; hn?: string }): string => {
+      const content = (body || '').trim();
+      const s1 = normalizeUrl(links.src1);
+      const s2 = normalizeUrl(links.src2);
+      const hn = normalizeUrl(links.hn);
+
+      const seen = new Set<string>();
+      const bullets: string[] = [];
+      const add = (label: string, u?: string) => {
+        if (!u || seen.has(u)) return;
+        seen.add(u);
+        bullets.push(`- ${label}: ${u}`);
+      };
+
+      add('Source 1', s1);
+      add('Source 2', s2);
+      if (hn && hn !== s1 && hn !== s2) add('Hacker News Thread', hn);
+
+      if (bullets.length === 0) return content;
+
+      const lines = content.split('\n');
+      const provIdx = lines.findIndex(l => /^##\s*PROVENANCE\b/i.test(l));
+
+      if (provIdx === -1) {
+        return `${content}\n\n## PROVENANCE\n${bullets.join('\n')}`;
+      }
+
+      // Merge into existing PROVENANCE section
+      let nextIdx = lines.length;
+      for (let i = provIdx + 1; i < lines.length; i++) {
+        if (/^##\s+/.test(lines[i])) { nextIdx = i; break; }
+      }
+      const before = lines.slice(0, nextIdx);
+      const after = lines.slice(nextIdx);
+      if (before[before.length - 1]?.trim() !== '') before.push('');
+      before.push(...bullets);
+      return [...before, ...after].join('\n');
+    },
+    []
+  );
+
   // --- Actions (Smart HN menu) ---
   const doQuickSummaries = async () => {
     if (!hnUrl || !hn?.articleUrl) return;
@@ -253,7 +274,11 @@ const App: React.FC = () => {
 
       setStatus(ProcessState.SYNTHESIZING);
       const fullSynRaw = await streamSynthesis(c1, c2, model, setSynthesisBuf);
-      const fullSyn = appendVerifiedProvenance(fullSynRaw);
+      const fullSyn = appendVerifiedProvenance(fullSynRaw, {
+        src1: u1,
+        src2: u2,
+        hn: hnUrl || undefined
+      });
       setResults({ summary1: full1, summary2: full2, synthesis: fullSyn });
       setStatus(ProcessState.DONE);
 
@@ -306,11 +331,15 @@ const App: React.FC = () => {
         setResults({ summary1: full1, summary2: full2 });
         setStatus(ProcessState.SYNTHESIZING);
         const synRaw = await streamSynthesis(c1, c2, model, setSynthesisBuf);
-        const synWithProv = appendVerifiedProvenance(synRaw);
+        const synWithProv = appendVerifiedProvenance(synRaw, {
+          src1: inputType1 === 'url' ? url1 : undefined,
+          src2: inputType2 === 'url' ? url2 : undefined,
+          hn: hnUrl || undefined
+        });
         setResults({ summary1: full1, summary2: full2, synthesis: synWithProv });
         setStatus(ProcessState.DONE);
 
-        // Add history for mixed-mode runs (missing in current code)
+        // Save mixed-mode run in history
         history.add({
           id: crypto.randomUUID(),
           createdAt: new Date().toISOString(),
@@ -464,7 +493,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Results */}
-        { (summary1Buf || summary2Buf || synthesisBuf || results) && !error && (
+        {(summary1Buf || summary2Buf || synthesisBuf || results) && !error && (
           <div className="mt-12">
             {mode === 'single' ? (
               <ResultCard
