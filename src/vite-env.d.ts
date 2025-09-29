@@ -1,3 +1,8 @@
+/// <reference types="vite/client" />
+```
+
+### File 5: Updated App.tsx (Complete File)
+```typescript
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   streamSummary, streamSynthesis, fetchUrlContent, initializeAi, getApiKey,
