@@ -88,6 +88,10 @@ npm run dev
 
 Open your browser to `http://localhost:5173/synthesize/` and you're ready to go! The app will prompt you for your Gemini API key on first use.
 
+Note: for UI/UX alpha version using example Carousel design:
+* In Demo Mode with placeholder data: http://localhost:5173/synthesize/?demo=1&skin=CarouselSynthesis
+* In Working Mode: http://localhost:5173/synthesize/?skin=CarouselSynthesis
+
 ### Deploy to GitHub Pages (Optional)
 1.  Update `package.json` with your GitHub username:
     ```json
