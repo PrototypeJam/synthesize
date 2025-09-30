@@ -15,6 +15,7 @@ import type { SkinComponent } from './components/skins/SkinContract';
 import { DEMO_DATA } from './fixtures/demoData';
 
 const HISTORY_KEY = 'synthi-history-v2';
+const SKIN_STORAGE_KEY = 'synthi-skin';
 
 function useHistory() {
   const [entries, setEntries] = useState<HistoryEntry[]>(() => {
@@ -64,8 +65,13 @@ const App: React.FC = () => {
   const [hn, setHn] = useState<{ id?: string; title?: string; articleUrl?: string } | null>(null);
   const [hnUrl, setHnUrl] = useState<string | null>(null);
 
-  // Skin state
+  // Skin state - now controlled by React state instead of URL params
   const [Skin, setSkin] = useState<SkinComponent | null>(null);
+  const [currentSkinName, setCurrentSkinName] = useState<string>(() => {
+    // Check URL param first, then localStorage, then default
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('skin') || localStorage.getItem(SKIN_STORAGE_KEY) || 'CarouselSynthesis';
+  });
 
   // Demo mode
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get('demo') === '1', []);
@@ -100,17 +106,11 @@ const App: React.FC = () => {
 
   useEffect(() => { saveModel(model); }, [model]);
 
-  // Skin loading
+  // Skin loading - now depends on currentSkinName state
   useEffect(() => {
     const loadSkin = async () => {
-      const qs = new URLSearchParams(window.location.search);
-      const rawName = qs.get('skin') || localStorage.getItem('synthi-skin') || 'CarouselSynthesis';
-      const name = rawName.replace(/[^A-Za-z0-9_-]/g, '');
-     
-      if (qs.get('skin')) {
-        localStorage.setItem('synthi-skin', name);
-      }
-     
+      const name = currentSkinName.replace(/[^A-Za-z0-9_-]/g, '');
+      
       const skins = import.meta.glob('./components/skins/*.tsx');
       const key = `./components/skins/${name}.tsx`;
       const fallbackKey = './components/skins/CarouselSynthesis.tsx';
@@ -118,7 +118,7 @@ const App: React.FC = () => {
       try {
         const loader = skins[key] || skins[fallbackKey];
         if (!loader) {
-          console.error(`No skin found for ${name}, and no Default fallback`);
+          console.error(`No skin found for ${name}, and no CarouselSynthesis fallback`);
           return;
         }
         const module = await loader() as any;
@@ -129,13 +129,13 @@ const App: React.FC = () => {
           const fallbackModule = await skins[fallbackKey]() as any;
           setSkin(() => fallbackModule.default as SkinComponent);
         } catch (fallbackError) {
-          console.error('Failed to load Default skin:', fallbackError);
+          console.error('Failed to load CarouselSynthesis skin:', fallbackError);
         }
       }
     };
    
     loadSkin();
-  }, []);
+  }, [currentSkinName]);
 
   // Demo mode data injection
   useEffect(() => {
@@ -184,6 +184,12 @@ const App: React.FC = () => {
     if (!text) return;
     try { await navigator.share({ title, text }); } catch {}
   }, []);
+
+  // Handle skin change without reloading page
+  const handleSkinChange = (newSkin: string) => {
+    setCurrentSkinName(newSkin);
+    localStorage.setItem(SKIN_STORAGE_KEY, newSkin);
+  };
 
   const getHostname = (url: string) => { try { return new URL(url).hostname; } catch { return 'Pasted'; } };
 
@@ -472,9 +478,25 @@ const App: React.FC = () => {
             Synthi — Content Synthesizer
           </h1>
           <p className="mt-4 text-lg text-gray-400">Summarize and synthesize content from URLs or pasted text.</p>
+          
+          {/* Settings button */}
           <button onClick={handleResetKey} className="absolute top-0 right-0 p-2 text-gray-400 hover:text-white" aria-label="Change API Key">
             <SettingsIcon />
           </button>
+          
+          {/* Design switcher - now updates state instead of reloading */}
+          <div className="absolute top-0 right-12 flex items-center gap-2">
+            <label htmlFor="skin-select" className="text-xs text-gray-400">Design:</label>
+            <select
+              id="skin-select"
+              value={currentSkinName}
+              onChange={(e) => handleSkinChange(e.target.value)}
+              className="bg-gray-800 text-white text-xs p-1 rounded border border-gray-600 hover:bg-gray-700"
+            >
+              <option value="CarouselSynthesis">Carousel</option>
+              <option value="Default">Classic</option>
+            </select>
+          </div>
         </header>
 
         <div className="bg-gray-800/40 border border-gray-700 rounded-xl p-6 sm:p-8 shadow-2xl">
