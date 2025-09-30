@@ -104,7 +104,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadSkin = async () => {
       const qs = new URLSearchParams(window.location.search);
-      const rawName = qs.get('skin') || localStorage.getItem('synthi-skin') || 'Default';
+      const rawName = qs.get('skin') || localStorage.getItem('synthi-skin') || 'CarouselSynthesis';
       const name = rawName.replace(/[^A-Za-z0-9_-]/g, '');
      
       if (qs.get('skin')) {
@@ -113,7 +113,7 @@ const App: React.FC = () => {
      
       const skins = import.meta.glob('./components/skins/*.tsx');
       const key = `./components/skins/${name}.tsx`;
-      const fallbackKey = './components/skins/Default.tsx';
+      const fallbackKey = './components/skins/CarouselSynthesis.tsx';
      
       try {
         const loader = skins[key] || skins[fallbackKey];
@@ -629,21 +629,6 @@ const App: React.FC = () => {
               </>
             )}
           </div>
-        )}
-
-        {isDemo && (
-          <select
-            className="fixed top-4 right-4 z-50 bg-gray-800 text-white p-2 rounded border border-gray-600"
-            value={new URLSearchParams(window.location.search).get('skin') || 'Default'}
-            onChange={(e) => {
-              const params = new URLSearchParams(window.location.search);
-              params.set('skin', e.target.value);
-              window.location.search = params.toString();
-            }}
-          >
-            <option value="Default">Default</option>
-            {/* Add more options as you create skins */}
-          </select>
         )}
 
         {/* History */}
