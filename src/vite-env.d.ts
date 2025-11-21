@@ -1,3 +1,8 @@
+/// <reference types="vite/client" />
+```
+
+### File 5: Updated App.tsx (Complete File)
+```typescript
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   streamSummary, streamSynthesis, fetchUrlContent, initializeAi, getApiKey,
@@ -15,7 +20,6 @@ import type { SkinComponent } from './components/skins/SkinContract';
 import { DEMO_DATA } from './fixtures/demoData';
 
 const HISTORY_KEY = 'synthi-history-v2';
-const SKIN_STORAGE_KEY = 'synthi-skin';
 
 function useHistory() {
   const [entries, setEntries] = useState<HistoryEntry[]>(() => {
@@ -65,13 +69,8 @@ const App: React.FC = () => {
   const [hn, setHn] = useState<{ id?: string; title?: string; articleUrl?: string } | null>(null);
   const [hnUrl, setHnUrl] = useState<string | null>(null);
 
-  // Skin state - now controlled by React state instead of URL params
+  // Skin state
   const [Skin, setSkin] = useState<SkinComponent | null>(null);
-  const [currentSkinName, setCurrentSkinName] = useState<string>(() => {
-    // Check URL param first, then localStorage, then default
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('skin') || localStorage.getItem(SKIN_STORAGE_KEY) || 'Outline';
-  });
 
   // Demo mode
   const isDemo = useMemo(() => new URLSearchParams(window.location.search).get('demo') === '1', []);
@@ -91,7 +90,7 @@ const App: React.FC = () => {
   }, [status, model]);
 
   useEffect(() => { if (navigator.share) setCanShare(true); }, []);
-
+  
   // API key initialization with demo guard
   useEffect(() => {
     if (isDemo) return;
@@ -106,19 +105,25 @@ const App: React.FC = () => {
 
   useEffect(() => { saveModel(model); }, [model]);
 
-  // Skin loading - now depends on currentSkinName state
+  // Skin loading
   useEffect(() => {
     const loadSkin = async () => {
-      const name = currentSkinName.replace(/[^A-Za-z0-9_-]/g, '');
-
+      const qs = new URLSearchParams(window.location.search);
+      const rawName = qs.get('skin') || localStorage.getItem('synthi-skin') || 'Default';
+      const name = rawName.replace(/[^A-Za-z0-9_-]/g, '');
+     
+      if (qs.get('skin')) {
+        localStorage.setItem('synthi-skin', name);
+      }
+     
       const skins = import.meta.glob('./components/skins/*.tsx');
       const key = `./components/skins/${name}.tsx`;
-      const fallbackKey = './components/skins/CarouselSynthesis.tsx';
-
+      const fallbackKey = './components/skins/Default.tsx';
+     
       try {
         const loader = skins[key] || skins[fallbackKey];
         if (!loader) {
-          console.error(`No skin found for ${name}, and no CarouselSynthesis fallback`);
+          console.error(`No skin found for ${name}, and no Default fallback`);
           return;
         }
         const module = await loader() as any;
@@ -129,18 +134,18 @@ const App: React.FC = () => {
           const fallbackModule = await skins[fallbackKey]() as any;
           setSkin(() => fallbackModule.default as SkinComponent);
         } catch (fallbackError) {
-          console.error('Failed to load CarouselSynthesis skin:', fallbackError);
+          console.error('Failed to load Default skin:', fallbackError);
         }
       }
     };
-
+   
     loadSkin();
-  }, [currentSkinName]);
+  }, []);
 
   // Demo mode data injection
   useEffect(() => {
     if (!isDemo) return;
-
+   
     setMode('dual');
     setResults({
       summary1: DEMO_DATA.summary1,
@@ -182,14 +187,8 @@ const App: React.FC = () => {
 
   const handleShare = useCallback(async (title: string, text: string) => {
     if (!text) return;
-    try { await navigator.share({ title, text }); } catch { }
+    try { await navigator.share({ title, text }); } catch {}
   }, []);
-
-  // Handle skin change without reloading page
-  const handleSkinChange = (newSkin: string) => {
-    setCurrentSkinName(newSkin);
-    localStorage.setItem(SKIN_STORAGE_KEY, newSkin);
-  };
 
   const getHostname = (url: string) => { try { return new URL(url).hostname; } catch { return 'Pasted'; } };
 
@@ -478,30 +477,9 @@ const App: React.FC = () => {
             Synthi — Content Synthesizer
           </h1>
           <p className="mt-4 text-lg text-gray-400">Summarize and synthesize content from URLs or pasted text.</p>
-
-          {/* Settings button */}
           <button onClick={handleResetKey} className="absolute top-0 right-0 p-2 text-gray-400 hover:text-white" aria-label="Change API Key">
             <SettingsIcon />
           </button>
-
-          {/* Design switcher - now updates state instead of reloading */}
-          <div className="absolute top-0 right-12 flex items-center gap-2">
-            <label htmlFor="skin-select" className="text-xs text-gray-400">Design:</label>            <select
-              id="skin-select"
-              value={currentSkinName}
-              onChange={(e) => handleSkinChange(e.target.value)}
-              className="bg-gray-800 text-white text-xs p-1 rounded border border-gray-600 hover:bg-gray-700"
-            >
-              <option value="Outline">Outline</option>
-              <option value="Default">Classic</option>
-              <option value="CarouselSynthesis">Carousel+</option>
-              <option value="Carousel">Carousel</option>
-              <option value="Magazine">Magazine</option>
-              <option value="Digest">Digest</option>
-              <option value="MindMap">Mind Map</option>
-            </select>
-
-          </div>
         </header>
 
         <div className="bg-gray-800/40 border border-gray-700 rounded-xl p-6 sm:p-8 shadow-2xl">
@@ -524,9 +502,9 @@ const App: React.FC = () => {
                 <button onClick={() => setInputType1('paste')} className={`px-3 py-1 rounded text-sm ${inputType1 === 'paste' ? 'bg-blue-600' : 'bg-gray-700'}`}>Paste Text</button>
               </div>
               {inputType1 === 'url' ? (
-                <UrlInput id="url1" label={mode === 'single' ? "Source URL" : "Source 1 URL"} value={url1} onChange={(e) => setUrl1(e.target.value)} placeholder="https://example.com/article or https://news.ycombinator.com/item?id=..." disabled={isBusy} />
+                <UrlInput id="url1" label={mode === 'single' ? "Source URL" : "Source 1 URL"} value={url1} onChange={(e) => setUrl1(e.target.value)} placeholder="https://example.com/article or https://news.ycombinator.com/item?id=..." disabled={isBusy}/>
               ) : (
-                <div className="flex-grow flex flex-col"><label className="block text-sm font-medium text-gray-400 mb-2">{mode === 'single' ? "Source Content" : "Source 1 Content"}</label><textarea value={pastedText1} onChange={(e) => setPastedText1(e.target.value)} placeholder="Paste content here..." disabled={isBusy} className="w-full flex-grow bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-100 disabled:opacity-50" /></div>
+                <div className="flex-grow flex flex-col"><label className="block text-sm font-medium text-gray-400 mb-2">{mode === 'single' ? "Source Content" : "Source 1 Content"}</label><textarea value={pastedText1} onChange={(e) => setPastedText1(e.target.value)} placeholder="Paste content here..." disabled={isBusy} className="w-full flex-grow bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-100 disabled:opacity-50"/></div>
               )}
             </div>
 
@@ -538,9 +516,9 @@ const App: React.FC = () => {
                   <button onClick={() => setInputType2('paste')} className={`px-3 py-1 rounded text-sm ${inputType2 === 'paste' ? 'bg-blue-600' : 'bg-gray-700'}`}>Paste Text</button>
                 </div>
                 {inputType2 === 'url' ? (
-                  <UrlInput id="url2" label="Source 2 URL" value={url2} onChange={(e) => setUrl2(e.target.value)} placeholder="https://example.com/article2" disabled={isBusy} />
+                  <UrlInput id="url2" label="Source 2 URL" value={url2} onChange={(e) => setUrl2(e.target.value)} placeholder="https://example.com/article2" disabled={isBusy}/>
                 ) : (
-                  <div className="flex-grow flex flex-col"><label className="block text-sm font-medium text-gray-400 mb-2">Source 2 Content</label><textarea value={pastedText2} onChange={(e) => setPastedText2(e.target.value)} placeholder="Paste content here..." disabled={isBusy} className="w-full flex-grow bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-100 disabled:opacity-50" /></div>
+                  <div className="flex-grow flex flex-col"><label className="block text-sm font-medium text-gray-400 mb-2">Source 2 Content</label><textarea value={pastedText2} onChange={(e) => setPastedText2(e.target.value)} placeholder="Paste content here..." disabled={isBusy} className="w-full flex-grow bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-100 disabled:opacity-50"/></div>
                 )}
               </div>
             )}
@@ -656,6 +634,21 @@ const App: React.FC = () => {
               </>
             )}
           </div>
+        )}
+
+        {isDemo && (
+          <select
+            className="fixed top-4 right-4 z-50 bg-gray-800 text-white p-2 rounded border border-gray-600"
+            value={new URLSearchParams(window.location.search).get('skin') || 'Default'}
+            onChange={(e) => {
+              const params = new URLSearchParams(window.location.search);
+              params.set('skin', e.target.value);
+              window.location.search = params.toString();
+            }}
+          >
+            <option value="Default">Default</option>
+            {/* Add more options as you create skins */}
+          </select>
         )}
 
         {/* History */}
